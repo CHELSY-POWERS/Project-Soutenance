@@ -368,6 +368,81 @@ def internal_error(error):
 
 # Initialize and run
 
+
+@app.route('/api/logs/alerts', methods=['GET'])
+def get_log_alerts():
+    """Get real-time log analysis alerts"""
+    try:
+        alerts_path = os.path.join(BASE_DIR, 'results/log_alerts.json')
+        if not os.path.exists(alerts_path):
+            return jsonify({
+                'alerts': [],
+                'total': 0,
+                'message': 'No log scan run yet'
+            }), 200
+        with open(alerts_path, 'r') as f:
+            alerts = json.load(f)
+        high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
+        medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
+        return jsonify({
+            'alerts':  alerts,
+            'total':   len(alerts),
+            'high':    high,
+            'medium':  medium,
+            'sources': {
+                'auth_log': sum(1 for a in alerts if a.get('source') == 'auth.log'),
+                'apache':   sum(1 for a in alerts if a.get('source') == 'apache2'),
+                'syslog':   sum(1 for a in alerts if a.get('source') == 'syslog'),
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/logs/scan', methods=['POST'])
+def trigger_log_scan():
+    """Manually trigger a log scan"""
+    try:
+        import subprocess
+        subprocess.Popen([
+            '/home/chelsy/ai-ids-project/venv/bin/python',
+            os.path.join(BASE_DIR, 'log_analysis/log_detector.py')
+        ])
+        return jsonify({
+            'message': 'Log scan triggered successfully',
+            'status': 'running'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/logs/sqli', methods=['GET'])
+def get_sqli_alerts():
+    """Scan Apache logs for SQL injection attacks"""
+    try:
+        import sys
+        sys.path.append(BASE_DIR)
+        from log_analysis.sqli_detector import SQLiDetector
+        
+        detector = SQLiDetector()
+        alerts   = detector.scan_apache_log()
+
+        high   = sum(1 for a in alerts if a.get('severity', 0) >= 4)
+        medium = sum(1 for a in alerts if a.get('severity', 0) == 3)
+
+        return jsonify({
+            'alerts':        alerts,
+            'total':         len(alerts),
+            'high_severity': high,
+            'medium_severity': medium,
+            'message':       f"Found {len(alerts)} SQLi attempts"
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("AI-IDS BACKEND API - ITERATION 1")
