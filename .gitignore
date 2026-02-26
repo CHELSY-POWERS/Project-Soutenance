@@ -82,3 +82,8 @@ htmlcov/
 .env
 .env.local
 secrets.json
+
+# Keep these important files
+!backend/requirements.txt
+!backend/setup.py
+!README.md
