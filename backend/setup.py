@@ -104,6 +104,19 @@ for folder in folders:
     print(f"  📁 {folder}")
 ok("All folders ready")
 
+# Create empty result files so Flask doesn't crash before first scan
+import json as _json
+empty_files = {
+    os.path.join(BASE_DIR, 'results', 'log_alerts.json'):     [],
+    os.path.join(BASE_DIR, 'results', 'network_alerts.json'): [],
+    os.path.join(BASE_DIR, 'results', 'detection_results.json'): [],
+}
+for fpath, default in empty_files.items():
+    if not os.path.exists(fpath):
+        with open(fpath, 'w') as _f:
+            _json.dump(default, _f)
+ok("Empty result files created")
+
 # ── Step 5: Check dataset ─────────────────────────────────
 header("Step 5/6 — Checking NSL-KDD Dataset")
 train_path = os.path.join(DATA_DIR, 'KDDTrain+.txt')
