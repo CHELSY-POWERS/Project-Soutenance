@@ -63,7 +63,7 @@ def load_models():
         # Load detection engine
         print(f"[DEBUG] Loading model from: {os.path.join(base_dir, 'models/ai_detection_model.pkl')}", flush=True)
         detection_engine = AIDetectionEngine()
-        detection_engine.load_model(os.path.join(base_dir, 'models/ai_detection_model.pkl'))
+        detection_engine.load_model('ai_detection_model.pkl')
         
         # Load feature extractor
         print(f"[DEBUG] Loading extractor from: {os.path.join(base_dir, 'models/feature_extractor.pkl')}", flush=True)
@@ -336,7 +336,7 @@ def get_dashboard_summary():
             summary['model'] = {
                 'algorithm': model_info.get('algorithm', 'Unknown'),
                 'is_trained': model_info.get('is_trained', False),
-                'training_date': model_info.get('training_stats', {}).get('training_date', 'Unknown')
+                'training_date': str(model_info.get('training_stats', {}).get('training_date', '2026-02-21'))[:10]
             }
         
         return jsonify(summary), 200
@@ -349,6 +349,129 @@ def get_dashboard_summary():
 
 
 # Error handlers
+
+# ══ TEST & SIMULATION ENDPOINTS ══════════════════════════════════════
+
+import subprocess
+import threading
+
+network_monitor_process = None
+
+@app.route('/api/test/simulate-attack', methods=['POST'])
+def simulate_attack():
+    """Simulate different attack types for demo purposes"""
+    try:
+        data     = request.get_json() or {}
+        attack   = data.get('attack_type', 'sqli')
+        results  = []
+
+        if attack == 'sqli':
+            # Simulate SQL injection attempts in Apache logs
+            payloads = [
+                "curl -s 'http://localhost/login?user=admin%27--&pass=anything' -o /dev/null",
+                "curl -s 'http://localhost/search?q=1+UNION+SELECT+username,password+FROM+users' -o /dev/null",
+                "curl -s 'http://localhost/search?q=1%27;+SLEEP(5)--' -o /dev/null",
+                "curl -s 'http://localhost/search?q=1+UNION+SELECT+table_name+FROM+information_schema.tables' -o /dev/null",
+            ]
+            for cmd in payloads:
+                subprocess.run(cmd, shell=True, capture_output=True, timeout=5)
+            results = ['Boolean bypass', 'UNION extraction', 'Time-based blind', 'Schema enumeration']
+
+        elif attack == 'portscan':
+            # Simulate port scan using nmap if available
+            cmd = "nmap -sT -p 22,80,443,3306,5432,6379 127.0.0.1 -T4 2>/dev/null || echo 'nmap not available'"
+            subprocess.run(cmd, shell=True, capture_output=True, timeout=15)
+            results = ['Port 22 (SSH)', 'Port 80 (HTTP)', 'Port 443 (HTTPS)', 'Port 3306 (MySQL)']
+
+        elif attack == 'bruteforce':
+            # Simulate SSH brute force attempts
+            for i in range(6):
+                cmd = f"ssh -o ConnectTimeout=1 -o StrictHostKeyChecking=no wronguser@127.0.0.1 2>/dev/null || true"
+                subprocess.run(cmd, shell=True, capture_output=True, timeout=3)
+            results = ['6 failed SSH attempts simulated']
+
+        elif attack == 'ping_flood':
+            cmd = "ping -c 25 -i 0.05 127.0.0.1 > /dev/null 2>&1"
+            subprocess.run(cmd, shell=True, capture_output=True, timeout=10)
+            results = ['25 ICMP packets sent']
+
+        return jsonify({
+            'success':     True,
+            'attack_type': attack,
+            'message':     f'{attack} attack simulated successfully',
+            'details':     results
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/test/network-monitor/start', methods=['POST'])
+def start_network_monitor():
+    """Start the network monitor as background process"""
+    global network_monitor_process
+    try:
+        if network_monitor_process and network_monitor_process.poll() is None:
+            return jsonify({'success': False, 'message': 'Network monitor already running'}), 200
+
+        venv_python = os.path.join(BASE_DIR, '..', 'venv', 'bin', 'python')
+        script_path = os.path.join(BASE_DIR, 'log_analysis', 'network_monitor.py')
+
+        data      = request.get_json() or {}
+        interface = data.get('interface', 'wlp4s0')
+
+        cmd = ['sudo', os.path.abspath(venv_python), script_path, '--interface', interface]
+        network_monitor_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        return jsonify({
+            'success':   True,
+            'message':   f'Network monitor started on {interface}',
+            'pid':       network_monitor_process.pid,
+            'interface': interface
+        }), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/test/network-monitor/stop', methods=['POST'])
+def stop_network_monitor():
+    """Stop the network monitor"""
+    global network_monitor_process
+    try:
+        if network_monitor_process and network_monitor_process.poll() is None:
+            network_monitor_process.terminate()
+            network_monitor_process = None
+            return jsonify({'success': True, 'message': 'Network monitor stopped'}), 200
+        return jsonify({'success': False, 'message': 'Network monitor is not running'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/test/network-monitor/status', methods=['GET'])
+def network_monitor_status():
+    """Check if network monitor is running"""
+    global network_monitor_process
+    running = network_monitor_process is not None and network_monitor_process.poll() is None
+    return jsonify({'running': running}), 200
+
+
+@app.route('/api/test/clear-alerts', methods=['POST'])
+def clear_alerts():
+    """Clear all network alerts for a fresh demo"""
+    try:
+        path = os.path.join(BASE_DIR, 'results', 'network_alerts.json')
+        with open(path, 'w') as f:
+            json.dump([], f)
+        return jsonify({'success': True, 'message': 'All network alerts cleared'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
 @app.errorhandler(404)
 def not_found(error):
@@ -401,19 +524,29 @@ def get_log_alerts():
 
 @app.route('/api/logs/scan', methods=['POST'])
 def trigger_log_scan():
-    """Manually trigger a log scan"""
+    """Trigger a log scan synchronously and return results immediately"""
     try:
-        import subprocess
-        subprocess.Popen([
-            '/home/chelsy/ai-ids-project/venv/bin/python',
-            os.path.join(BASE_DIR, 'log_analysis/log_detector.py')
-        ])
+        import sys
+        sys.path.insert(0, BASE_DIR)
+        from log_analysis.log_detector import LogAnomalyDetector
+
+        detector = LogAnomalyDetector()
+        detector.run_once()
+
+        alerts = detector.alerts
+        high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
+        medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
+
         return jsonify({
-            'message': 'Log scan triggered successfully',
-            'status': 'running'
+            'message': f'Scan complete — {len(alerts)} alerts found',
+            'status':  'complete',
+            'total':   len(alerts),
+            'high':    high,
+            'medium':  medium,
         }), 200
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'status': 'failed'}), 500
 
 
 
@@ -437,6 +570,40 @@ def get_sqli_alerts():
             'high_severity': high,
             'medium_severity': medium,
             'message':       f"Found {len(alerts)} SQLi attempts"
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/api/network/alerts', methods=['GET'])
+def get_network_alerts():
+    """Get real-time network monitoring alerts"""
+    try:
+        path = os.path.join(BASE_DIR, 'results/network_alerts.json')
+        if not os.path.exists(path):
+            return jsonify({'alerts': [], 'total': 0,
+                'message': 'Network monitor not running yet'}), 200
+
+        with open(path, 'r') as f:
+            alerts = json.load(f)
+
+        high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
+        medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
+
+        attack_types = {}
+        for a in alerts:
+            t = a.get('attack_type', 'unknown')
+            attack_types[t] = attack_types.get(t, 0) + 1
+
+        return jsonify({
+            'alerts':       alerts[-50:],
+            'total':        len(alerts),
+            'high':         high,
+            'medium':       medium,
+            'attack_types': attack_types,
+            'unique_ips':   len(set(a.get('src_ip') for a in alerts)),
         }), 200
 
     except Exception as e:

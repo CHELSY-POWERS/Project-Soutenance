@@ -37,4 +37,35 @@ const api = {
   },
 };
 
+export const testApi = {
+  simulateAttack: async (attackType) => {
+    const res = await fetch(`${API_BASE}/test/simulate-attack`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attack_type: attackType })
+    });
+    return res.json();
+  },
+  startNetworkMonitor: async (iface = 'wlp4s0') => {
+    const res = await fetch(`${API_BASE}/test/network-monitor/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interface: iface })
+    });
+    return res.json();
+  },
+  stopNetworkMonitor: async () => {
+    const res = await fetch(`${API_BASE}/test/network-monitor/stop`, { method: 'POST' });
+    return res.json();
+  },
+  getMonitorStatus: async () => {
+    const res = await fetch(`${API_BASE}/test/network-monitor/status`);
+    return res.json();
+  },
+  clearAlerts: async () => {
+    const res = await fetch(`${API_BASE}/test/clear-alerts`, { method: 'POST' });
+    return res.json();
+  },
+};
+
 export default api;

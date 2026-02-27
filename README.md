@@ -1,85 +1,105 @@
-# AI-IDS — Artificial Intelligence Intrusion Detection System
+# AI-IDS — Autonomous Intrusion Detection System
 
-A complete cybersecurity system using Machine Learning to detect network intrusions and anomalies in real time.
+A complete cybersecurity project using Machine Learning to detect network intrusions in real time.
 
-## Features
-- Isolation Forest + Random Forest AI models
-- Real-time log analysis (auth.log, Apache, syslog)
-- SQL Injection detection (7 attack categories)
-- Live network traffic monitoring (packet sniffing)
-- React dashboard with 5 tabs
+## 🔍 What It Does
+- **Isolation Forest + Random Forest** AI models trained on NSL-KDD dataset (125,973 samples)
+- **Real-time log analysis** — scans auth.log, Apache, syslog for threats
+- **SQL Injection detection** — detects 7 categories of SQLi attacks
+- **Live network monitoring** — packet sniffing via Scapy
+- **Attack simulation** — test panel to launch simulated attacks from the browser
+- **React dashboard** — 6 tabs: Overview, Results, Metrics, Logs, Network, Tests
 
-## Quick Start
+## 🚀 Quick Start (First Time)
 
-### 1. Clone the repo
+### 1. Clone the repository
 ```bash
 git clone <your-repo-url>
 cd ai-ids-project
 ```
 
-### 2. Create virtual environment
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Download the dataset (required once)
+### 2. Download the NSL-KDD Dataset (one time only)
 - Go to: https://www.kaggle.com/datasets/hassan06/nslkdd
-- Download `KDDTrain+.txt` and `KDDTest+.txt`
-- Place them in `backend/data/processed/`
+- Download and extract the zip
+- Copy `KDDTrain+.txt` and `KDDTest+.txt` into `backend/data/processed/`
 
-### 4. Run setup (installs dependencies + trains models)
+### 3. Run setup (installs everything + trains AI models)
 ```bash
 python backend/setup.py
 ```
+This takes about 3-5 minutes the first time.
 
-### 5. Start the backend
+### 4. Start the backend
 ```bash
 cd backend
+source ../venv/bin/activate       # Mac/Linux
+# venv\Scripts\activate           # Windows
 python app.py
 ```
 
-### 6. Start the frontend (new terminal)
+### 5. Start the frontend (new terminal)
 ```bash
 cd dashboard
 npm install
 npm start
 ```
 
-### 7. Open your browser
+### 6. Open browser
 ```
 http://localhost:3000
 ```
 
-## Important Note About localhost
-The frontend is configured for `localhost:5000` by default.
-If you want others on the same WiFi to access it, find your IP:
-```bash
-hostname -I | awk '{print $1}'
-```
-Then share: `http://YOUR_IP:5000`
+## 🧪 Running Tests From the Dashboard
+1. Open the **TESTS** tab
+2. Click **Launch SQL Injection** — alerts appear in Logs tab
+3. Click **Launch Port Scan** — triggers port scan detection
+4. Click **Start Monitor** — starts live network monitoring
+5. Check **NETWORK** tab for real-time alerts
 
-## Project Structure
+## 📁 Project Structure
 ```
 ai-ids-project/
 ├── backend/
-│   ├── app.py                    # Flask API
-│   ├── train_model.py            # Train Isolation Forest
-│   ├── train_random_forest.py    # Train Random Forest
-│   ├── requirements.txt          # Python dependencies
-│   ├── setup.py                  # First-time setup script
-│   ├── ai_engine/                # AI detection engines
-│   ├── log_analysis/             # Log parsers + network monitor
-│   ├── data/processed/           # NSL-KDD dataset (not in git)
-│   └── models/                   # Trained models (not in git)
+│   ├── app.py                      # Flask API (9 endpoints)
+│   ├── train_model.py              # Train Isolation Forest
+│   ├── train_random_forest.py      # Train Random Forest
+│   ├── requirements.txt            # Python dependencies
+│   ├── setup.py                    # First-time setup script
+│   ├── ai_engine/
+│   │   └── anomaly_detector.py     # Core AI detection engine
+│   ├── log_analysis/
+│   │   ├── log_detector.py         # Real-time log scanning
+│   │   ├── log_parser.py           # Log file parser
+│   │   ├── log_scorer.py           # Threat scorer
+│   │   ├── sqli_detector.py        # SQL injection detector
+│   │   └── network_monitor.py      # Packet sniffer
+│   ├── data/processed/             # NSL-KDD dataset (not in git)
+│   ├── models/                     # Trained models (not in git)
+│   └── results/                    # Detection results (not in git)
 └── dashboard/
     └── src/
-        ├── AIDashboard.jsx       # Main component
-        ├── services/api.js       # API calls
-        └── components/           # UI components + tabs
-```
+        ├── AIDashboard.jsx         # Main component
+        ├── services/api.js         # All API calls
+        └── components/
+            ├── UI.jsx              # Shared components
+            └── tabs/
+                ├── OverviewTab.jsx
+                ├── ResultsTab.jsx
+                ├── MetricsTab.jsx
+                ├── LogsTab.jsx
+                ├── NetworkTab.jsx
+                └── TestsTab.jsx
 
-## Tech Stack
-- Python 3.10+, Flask, scikit-learn, Scapy
-- React 18, Recharts
-- NSL-KDD Dataset (125,973 samples)
+## 🤖 AI Model Performance (NSL-KDD Test Set — 22,544 samples)
+| Metric    | Isolation Forest |
+|-----------|-----------------|
+| Accuracy  | 78.55%          |
+| Precision | 81.97%          |
+| Recall    | 79.90%          |
+| F1-Score  | 80.92%          |
+
+## ⚠️ Important Notes
+- Models and dataset are NOT in the repository (too large)
+- Run `python backend/setup.py` to generate them
+- Network monitoring requires `sudo` privileges
+- The system monitors **your real system logs** — alerts are genuine

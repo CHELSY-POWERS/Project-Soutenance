@@ -87,3 +87,9 @@ secrets.json
 !backend/requirements.txt
 !backend/setup.py
 !README.md
+
+# Keep empty folders
+!backend/results/.gitkeep
+!backend/logs/.gitkeep
+!backend/models/.gitkeep
+!backend/data/processed/.gitkeep

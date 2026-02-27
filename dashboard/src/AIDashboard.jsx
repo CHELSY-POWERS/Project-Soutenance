@@ -5,9 +5,10 @@ import OverviewTab  from "./components/tabs/OverviewTab";
 import ResultsTab   from "./components/tabs/ResultsTab";
 import MetricsTab   from "./components/tabs/MetricsTab";
 import LogsTab      from "./components/tabs/LogsTab";
-import NetworkTab   from "./components/tabs/NetworkTab";
+import NetworkTab  from "./components/tabs/NetworkTab";
+import TestsTab    from "./components/tabs/TestsTab";
 
-const TABS = ["overview", "results", "metrics", "logs", "network"];
+const TABS = ["overview", "results", "metrics", "logs", "network", "tests"];
 
 export default function AIDashboard() {
   const [summary,       setSummary]       = useState(null);
@@ -80,7 +81,7 @@ export default function AIDashboard() {
         setLogAlerts(logData);
         setSQLiAlerts(sqliData);
         setScanning(false);
-      }, 3000);
+      }, 8000);
     } catch (err) {
       setScanning(false);
     }
@@ -149,7 +150,8 @@ export default function AIDashboard() {
         {activeTab === "results"  && <ResultsTab   results={results}     filter={filter} setFilter={setFilter} />}
         {activeTab === "metrics"  && <MetricsTab   summary={summary} />}
         {activeTab === "logs"     && <LogsTab       logAlerts={logAlerts} sqliAlerts={sqliAlerts} scanning={scanning} onScan={handleLogScan} />}
-        {activeTab === "network"  && <NetworkTab    networkAlerts={networkAlerts} />}
+        {activeTab === "network"  && <NetworkTab  networkAlerts={networkAlerts} />}
+        {activeTab === "tests"    && <TestsTab    onAttackComplete={loadData} />}
       </main>
 
       <style>{`

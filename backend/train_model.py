@@ -62,7 +62,7 @@ def train_model():
         engine.model = model
         engine.is_trained = True
         engine.training_stats = {
-            'training_date': 'manual-run',
+            'training_date': __import__('datetime').datetime.now().strftime('%Y-%m-%d'),
             'n_samples': getattr(X_train, 'shape', (len(X_train),))[0],
             'n_features': getattr(X_train, 'shape', (None, None))[1] if hasattr(X_train, 'shape') else None,
             'contamination': 0.4,
