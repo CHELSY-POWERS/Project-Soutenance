@@ -62,7 +62,7 @@ export default function AIDashboard() {
 
   const loadResults = async () => {
     try {
-      const data = await api.getDetectionResults(1, 20, filter);
+      const data = await api.getDetectionResults(1, 22544, filter);
       setResults(data.results || []);
     } catch (err) {
       console.error('Failed to load results:', err);

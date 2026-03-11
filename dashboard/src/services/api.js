@@ -6,7 +6,7 @@ const api = {
     if (!res.ok) throw new Error('Backend not reachable');
     return res.json();
   },
-  getDetectionResults: async (page = 1, perPage = 20, filter = 'all') => {
+  getDetectionResults: async (page = 1, perPage = 22544, filter = 'all') => {
     const res = await fetch(`${API_BASE}/detection/results?page=${page}&per_page=${perPage}&filter=${filter}`);
     if (!res.ok) throw new Error('Failed to fetch results');
     return res.json();

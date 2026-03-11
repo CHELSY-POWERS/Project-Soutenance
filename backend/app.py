@@ -395,11 +395,18 @@ def simulate_attack():
             subprocess.run(cmd, shell=True, capture_output=True, timeout=10)
             results = ['25 ICMP packets sent']
 
+        tips = {
+            'sqli':       'Go to Logs tab → click Run Log Scan to see SQLi alerts',
+            'portscan':   'Check Network tab (monitor must be running)',
+            'bruteforce': 'Go to Logs tab → click Run Log Scan to see brute force alerts',
+            'ping_flood': 'Check Network tab for ICMP flood (monitor must be running)',
+        }
         return jsonify({
             'success':     True,
             'attack_type': attack,
             'message':     f'{attack} attack simulated successfully',
-            'details':     results
+            'details':     results,
+            'next_step':   tips.get(attack, 'Check Logs and Network tabs'),
         }), 200
 
     except Exception as e:
@@ -464,14 +471,32 @@ def network_monitor_status():
 def clear_alerts():
     """Clear all network alerts for a fresh demo"""
     try:
-        path = os.path.join(BASE_DIR, 'results', 'network_alerts.json')
-        with open(path, 'w') as f:
-            json.dump([], f)
-        return jsonify({'success': True, 'message': 'All network alerts cleared'}), 200
+        cleared = []
+        for filename in ['network_alerts.json', 'log_alerts.json']:
+            path = os.path.join(BASE_DIR, 'results', filename)
+            with open(path, 'w') as f:
+                json.dump([], f)
+            cleared.append(filename)
+        return jsonify({'success': True, 'message': f'Cleared: {", ".join(cleared)}', 'cleared': cleared}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+
+@app.route('/api/test/monitor-command', methods=['GET'])
+def get_monitor_command():
+    """Return dynamic monitor command for this specific machine"""
+    venv_python = os.path.abspath(os.path.join(BASE_DIR, '..', 'venv', 'bin', 'python'))
+    script_path = os.path.abspath(os.path.join(BASE_DIR, 'log_analysis', 'network_monitor.py'))
+    try:
+        import subprocess as sp2
+        result = sp2.run(['ip', 'route', 'show', 'default'], capture_output=True, text=True, timeout=3)
+        parts = result.stdout.strip().split()
+        iface = parts[parts.index('dev') + 1] if 'dev' in parts else 'wlp4s0'
+    except Exception:
+        iface = 'wlp4s0'
+    return jsonify({'command': f"sudo {venv_python} {script_path} --interface {iface}", 'interface': iface}), 200
 
 @app.errorhandler(404)
 def not_found(error):

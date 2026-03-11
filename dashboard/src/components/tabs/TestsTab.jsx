@@ -42,6 +42,7 @@ export default function TestsTab({ onAttackComplete }) {
       if (result.success) {
         addLog(`✅ ${attack.label} completed!`, 'success');
         result.details?.forEach(d => addLog(`   → ${d}`, 'detail'));
+        if (result.next_step) addLog(`💡 Next: ${result.next_step}`, 'info');
         addLog(`⏳ Refreshing alerts in 3 seconds...`, 'info');
 
         setTimeout(() => {
