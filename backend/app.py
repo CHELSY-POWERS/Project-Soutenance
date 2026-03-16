@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 """
 Flask Backend API for AI-IDS Project
 Iteration 1: Core AI Intelligence
@@ -10,7 +13,9 @@ Date: February 2026
 """
 
 from flask import Flask, jsonify, request
+from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+from datetime import datetime
 import numpy as np
 import json
 import os
@@ -37,6 +42,7 @@ from feature_engineering.extractor import FeatureExtractor
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=False, engineio_logger=False)
 
 # Absolute base directory (backend/)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -498,6 +504,50 @@ def get_monitor_command():
         iface = 'wlp4s0'
     return jsonify({'command': f"sudo {venv_python} {script_path} --interface {iface}", 'interface': iface}), 200
 
+
+# ══ WEBSOCKET EVENTS ══════════════════════════════════════════════
+
+@socketio.on('connect')
+def handle_connect():
+    """Client connected to WebSocket"""
+    print(f"[WS] Client connected")
+    emit('connected', {
+        'status': 'connected',
+        'message': 'Real-time stream active',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f"[WS] Client disconnected")
+
+@socketio.on('ping_server')
+def handle_ping():
+    emit('pong_server', {'timestamp': datetime.now().isoformat()})
+
+def emit_alert(event_name, data):
+    """Helper to emit alert to all connected clients"""
+    try:
+        socketio.emit(event_name, {**data, 'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        print(f"[WS] Emit error: {e}")
+
+def emit_system_status():
+    """Emit current system status to all clients"""
+    try:
+        alerts_path = os.path.join(BASE_DIR, 'results', 'log_alerts.json')
+        net_path    = os.path.join(BASE_DIR, 'results', 'network_alerts.json')
+        log_count   = len(json.load(open(alerts_path))) if os.path.exists(alerts_path) else 0
+        net_count   = len(json.load(open(net_path)))    if os.path.exists(net_path)    else 0
+        socketio.emit('system_status', {
+            'log_alerts':     log_count,
+            'network_alerts': net_count,
+            'monitor_running': network_monitor_process is not None and network_monitor_process.poll() is None,
+            'timestamp':      datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"[WS] Status emit error: {e}")
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({
@@ -561,6 +611,23 @@ def trigger_log_scan():
         alerts = detector.alerts
         high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
         medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
+
+        # Emit WebSocket event to all connected clients
+        emit_alert('new_log_alerts', {
+            'total':  len(alerts),
+            'high':   high,
+            'medium': medium,
+            'alerts': alerts[:10],  # Send first 10 for instant display
+        })
+
+        # Push to all WebSocket clients instantly
+        socketio.emit('new_log_alerts', {
+            'total':   len(alerts),
+            'high':    high,
+            'medium':  medium,
+            'alerts':  alerts[:10],
+            'timestamp': datetime.now().isoformat(),
+        })
 
         return jsonify({
             'message': f'Scan complete — {len(alerts)} alerts found',
@@ -637,7 +704,7 @@ def get_network_alerts():
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("AI-IDS BACKEND API - ITERATION 1")
+    print("AI-IDS BACKEND API - ITERATION 3")
     print("="*60 + "\n")
     
     # Load models on startup
@@ -649,4 +716,13 @@ if __name__ == '__main__':
     print("[INFO] React frontend should connect to this address")
     print("\n" + "="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Start real-time file watcher
+    try:
+        from log_analysis.file_watcher import LogFileWatcher
+        watcher = LogFileWatcher(socketio=socketio)
+        watcher.start()
+        print("[INFO] ✅ Real-time file watcher started!")
+    except Exception as e:
+        print(f"[WARN] File watcher failed to start: {e}")
+
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)

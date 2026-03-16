@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import useSocket from "./hooks/useSocket";
+import LiveBadge from "./components/LiveBadge";
 import api from "./services/api";
 import { C, Badge } from "./components/UI";
 import OverviewTab  from "./components/tabs/OverviewTab";
@@ -20,10 +22,45 @@ export default function AIDashboard() {
   const [filter,        setFilter]        = useState("all");
   const [loading,       setLoading]       = useState(true);
   const [scanning,      setScanning]      = useState(false);
+
+  // WebSocket callbacks
+  const handleLiveLogAlert = useCallback((alert, bulk) => {
+    if (bulk) {
+      loadData();
+    } else if (alert) {
+      setLogAlerts(prev => [alert, ...prev].slice(0, 200));
+    }
+  }, []);
+
+  const handleLiveNetworkAlert = useCallback((alert) => {
+    if (alert) {
+      setNetworkAlerts(prev => ({
+        ...prev,
+        total: (prev.total || 0) + 1,
+        alerts: [alert, ...(prev.alerts || [])].slice(0, 100),
+      }));
+    }
+  }, []);
+
+  const { connected, lastAlertTime, alertCount } = useSocket({
+    onLogAlert:     handleLiveLogAlert,
+    onNetworkAlert: handleLiveNetworkAlert,
+  });
   const [error,         setError]         = useState(null);
   const [activeTab,     setActiveTab]     = useState("overview");
 
   useEffect(() => { loadData(); }, []);
+
+  // Fast polling for live alerts (every 5s backup to WebSocket)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const logData = await api.getLogAlerts();
+        setLogAlerts(logData.alerts || []);
+      } catch(e) {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -127,7 +164,7 @@ export default function AIDashboard() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <span style={{ color: C.muted, fontSize: 11 }}>{summary.model.algorithm}</span>
-          <Badge label="LIVE" type="normal" />
+          <LiveBadge connected={connected} lastAlertTime={lastAlertTime} alertCount={alertCount} />
         </div>
       </header>
 
