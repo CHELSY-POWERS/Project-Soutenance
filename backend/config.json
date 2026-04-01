@@ -1,0 +1,54 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 5000
+  },
+  "paths": {
+    "models": "models",
+    "results": "results",
+    "data": "data/processed"
+  },
+  "model": {
+    "ai_model": "ai_detection_model.pkl",
+    "rf_model": "random_forest_model.pkl",
+    "scaler": "scaler.pkl",
+    "extractor": "feature_extractor.pkl",
+    "contamination": 0.2
+  },
+  "network": {
+    "default_interface": "auto"
+  },
+  "detection": {
+    "max_results": 22544,
+    "log_files": [
+      "/var/log/auth.log",
+      "/var/log/apache2/access.log",
+      "/var/log/syslog"
+    ],
+    "alert_files": ["network_alerts.json", "log_alerts.json"]
+  },
+  "mitre": {
+    "failed_login":   {"id": "T1110", "name": "Brute Force",          "tactic": "Credential Access"},
+    "port_scan":      {"id": "T1046", "name": "Network Service Scan",  "tactic": "Discovery"},
+    "web_attack":     {"id": "T1190", "name": "Exploit Public App",    "tactic": "Initial Access"},
+    "sql_injection":  {"id": "T1190", "name": "Exploit Public App",    "tactic": "Initial Access"},
+    "ping_flood":     {"id": "T1498", "name": "Network DoS",           "tactic": "Impact"},
+    "sudo_as_root":   {"id": "T1548", "name": "Abuse Elevation Control","tactic": "Privilege Escalation"},
+    "invalid_user":   {"id": "T1078", "name": "Valid Accounts",        "tactic": "Initial Access"},
+    "kernel_error":       {"id": "T1499", "name": "Endpoint DoS",           "tactic": "Impact"},
+    "memory_exhaustion":  {"id": "T1499", "name": "Endpoint DoS",           "tactic": "Impact"},
+    "segfault":           {"id": "T1499", "name": "Endpoint DoS",           "tactic": "Impact"}
+  },
+  "threat_intelligence": {
+    "port_scan":    "Reconnaissance",
+    "brute_force":  "Credential Attack",
+    "sql_injection":"Injection Attack",
+    "ping_flood":   "DoS Attack",
+    "web_attack":   "Injection Attack",
+    "kernel_error":      "System Disruption",
+    "memory_exhaustion": "System Disruption",
+    "segfault":          "System Disruption",
+    "failed_login": "Credential Attack",
+    "sudo_as_root": "Privilege Escalation"
+  }
+}

@@ -137,7 +137,7 @@ export default function LogsTab({ logAlerts, sqliAlerts, scanning, onScan }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-              {["Time", "Source", "Event Type", "IP Address", "User", "Threat", "Score", ""].map(h => (
+              {["Time", "Source", "Event Type", "IP Address", "Threat", "Score", "MITRE", ""].map(h => (
                 <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: C.muted, fontSize: 10, letterSpacing: 1, textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
@@ -174,6 +174,18 @@ export default function LogsTab({ logAlerts, sqliAlerts, scanning, onScan }) {
                 <td style={{ padding: "10px 16px", fontFamily: "monospace", fontSize: 12,
                   color: alert.anomaly_score > 0.8 ? C.red : C.yellow, fontWeight: 700 }}>
                   {typeof alert.anomaly_score === 'number' ? alert.anomaly_score.toFixed(2) : 'N/A'}
+                </td>
+                <td style={{ padding: "10px 16px" }}>
+                  {alert.mitre && alert.mitre.id !== 'T0000' ? (
+                    <div>
+                      <span style={{ background: "#7c3aed22", color: "#a78bfa", border: "1px solid #7c3aed44", borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 700 }}>
+                        {alert.mitre.id}
+                      </span>
+                      <span style={{ display: "block", fontSize: 9, color: C.muted, marginTop: 2 }}>
+                        {alert.mitre.tactic}
+                      </span>
+                    </div>
+                  ) : <span style={{ color: C.muted, fontSize: 10 }}>—</span>}
                 </td>
                 {/* LIVE badge */}
                 <td style={{ padding: "10px 16px" }}>

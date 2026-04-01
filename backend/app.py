@@ -14,11 +14,16 @@ Date: February 2026
 
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit
+from flasgger import Swagger
 from flask_cors import CORS
 from datetime import datetime
 import numpy as np
 import json
 import os
+
+# Load central config
+with open(os.path.join(os.path.dirname(__file__), 'config.json')) as _f:
+    CONFIG = json.load(_f)
 import sys
 import logging
 
@@ -41,6 +46,26 @@ from feature_engineering.extractor import FeatureExtractor
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Swagger API documentation — available at http://localhost:5000/apidocs/
+swagger = Swagger(app, template={
+    "swagger": "2.0",
+    "info": {
+        "title": "AI-IDS — Autonomous Intrusion Detection System API",
+        "description": "Real-time intrusion detection using Isolation Forest trained on NSL-KDD dataset. Detects SSH brute force, SQL injection, port scans, network floods.",
+        "version": "3.0.0",
+        "contact": {"name": "GitHub", "url": "https://github.com/CHELSY-POWERS/Project-Soutenance"}
+    },
+    "tags": [
+        {"name": "Health",    "description": "System status"},
+        {"name": "Detection", "description": "AI model predictions"},
+        {"name": "Metrics",   "description": "Model performance"},
+        {"name": "Logs",      "description": "Log analysis"},
+        {"name": "Network",   "description": "Packet capture"},
+        {"name": "Dashboard", "description": "Overview data"},
+        {"name": "Tests",     "description": "Attack simulation"},
+    ]
+})
 CORS(app)  # Enable CORS for React frontend
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=False, engineio_logger=False)
 
@@ -69,7 +94,7 @@ def load_models():
         # Load detection engine
         print(f"[DEBUG] Loading model from: {os.path.join(base_dir, 'models/ai_detection_model.pkl')}", flush=True)
         detection_engine = AIDetectionEngine()
-        detection_engine.load_model('ai_detection_model.pkl')
+        detection_engine.load_model()
         
         # Load feature extractor
         print(f"[DEBUG] Loading extractor from: {os.path.join(base_dir, 'models/feature_extractor.pkl')}", flush=True)
@@ -90,6 +115,19 @@ def load_models():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
+    """
+    System health check
+    ---
+    tags: [Health]
+    responses:
+      200:
+        description: System is healthy
+        schema:
+          properties:
+            status:    {type: string, example: healthy}
+            model_loaded: {type: boolean, example: true}
+            message:   {type: string}
+    """
     """
     Health check endpoint to verify API is running.
     """
@@ -172,6 +210,42 @@ def get_statistics():
 @app.route('/api/detection/results', methods=['GET'])
 def get_detection_results():
     """
+    Get AI model detection results
+    ---
+    tags: [Detection]
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        default: 1
+      - name: per_page
+        in: query
+        type: integer
+        default: 22544
+        description: Number of results per page
+      - name: filter
+        in: query
+        type: string
+        enum: [all, normal, anomaly]
+        default: all
+    responses:
+      200:
+        description: Detection results from Isolation Forest model
+        schema:
+          properties:
+            results:
+              type: array
+              items:
+                properties:
+                  event_id:      {type: integer}
+                  prediction:    {type: string, enum: [normal, anomaly]}
+                  anomaly_score: {type: number, description: "Isolation score 0-1"}
+                  confidence:    {type: number}
+                  timestamp:     {type: string}
+            pagination:
+              type: object
+    """
+    """
     Get paginated detection results.
     """
     try:
@@ -224,6 +298,21 @@ def get_detection_results():
 
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
+    """
+    Get model performance metrics
+    ---
+    tags: [Metrics]
+    responses:
+      200:
+        description: Real metrics calculated on NSL-KDD test set (22,544 samples)
+        schema:
+          properties:
+            accuracy:   {type: number, example: 0.7855}
+            precision:  {type: number, example: 0.8197}
+            recall:     {type: number, example: 0.7990}
+            f1_score:   {type: number, example: 0.8092}
+            dataset:    {type: string, example: "NSL-KDD Full Test Set"}
+    """
     """
     Get evaluation metrics from the model.
     """
@@ -298,6 +387,25 @@ def predict():
 @app.route('/api/dashboard/summary', methods=['GET'])
 def get_dashboard_summary():
     """
+    Get dashboard overview summary
+    ---
+    tags: [Dashboard]
+    responses:
+      200:
+        description: Summary KPIs for dashboard overview
+        schema:
+          properties:
+            total_events:    {type: integer, example: 22544}
+            anomalies_detected: {type: integer}
+            normal_traffic:  {type: integer}
+            anomaly_rate:    {type: number, example: 55.48}
+            model:
+              type: object
+              properties:
+                algorithm: {type: string, example: Isolation Forest}
+                accuracy:  {type: number, example: 78.55}
+    """
+    """
     Get comprehensive summary for dashboard home page.
     """
     try:
@@ -365,6 +473,29 @@ network_monitor_process = None
 
 @app.route('/api/test/simulate-attack', methods=['POST'])
 def simulate_attack():
+    """
+    Simulate an attack for demonstration
+    ---
+    tags: [Tests]
+    parameters:
+      - in: body
+        name: body
+        schema:
+          properties:
+            attack_type:
+              type: string
+              enum: [sqli, portscan, bruteforce, ping_flood]
+              example: sqli
+    responses:
+      200:
+        description: Attack simulated successfully
+        schema:
+          properties:
+            success:     {type: boolean}
+            attack_type: {type: string}
+            details:     {type: array, items: {type: string}}
+            next_step:   {type: string, description: "Where to see results"}
+    """
     """Simulate different attack types for demo purposes"""
     try:
         data     = request.get_json() or {}
@@ -431,7 +562,15 @@ def start_network_monitor():
         script_path = os.path.join(BASE_DIR, 'log_analysis', 'network_monitor.py')
 
         data      = request.get_json() or {}
-        interface = data.get('interface', 'wlp4s0')
+        # Auto-detect interface if not provided
+        def get_default_iface():
+            try:
+                import subprocess as sp2
+                r = sp2.run(['ip','route','show','default'], capture_output=True, text=True)
+                parts = r.stdout.strip().split()
+                return parts[parts.index('dev')+1] if 'dev' in parts else 'wlp4s0'
+            except: return 'wlp4s0'
+        interface = data.get('interface') or get_default_iface()
 
         cmd = ['sudo', os.path.abspath(venv_python), script_path, '--interface', interface]
         network_monitor_process = subprocess.Popen(
@@ -569,6 +708,28 @@ def internal_error(error):
 
 @app.route('/api/logs/alerts', methods=['GET'])
 def get_log_alerts():
+    """
+    Get log analysis alerts
+    ---
+    tags: [Logs]
+    responses:
+      200:
+        description: Alerts detected from auth.log, Apache2, and syslog
+        schema:
+          properties:
+            total:  {type: integer}
+            high:   {type: integer, description: "HIGH severity alerts"}
+            medium: {type: integer}
+            alerts:
+              type: array
+              items:
+                properties:
+                  event_type:    {type: string, example: failed_login}
+                  threat_level:  {type: string, enum: [HIGH, MEDIUM, LOW]}
+                  ip_address:    {type: string, example: "192.168.1.100"}
+                  anomaly_score: {type: number}
+                  live:          {type: boolean, description: "True if detected by real-time file watcher"}
+    """
     """Get real-time log analysis alerts"""
     try:
         alerts_path = os.path.join(BASE_DIR, 'results/log_alerts.json')
@@ -582,6 +743,30 @@ def get_log_alerts():
             alerts = json.load(f)
         high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
         medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
+        # Enrich with MITRE ATT&CK + risk score
+        for a in alerts:
+            etype = a.get('event_type', '')
+            score = float(a.get('anomaly_score', 0.5))
+            sev   = 3 if a.get('threat_level') == 'HIGH' else 1
+            a['risk_score']      = round(sev * score, 2)
+            # Dynamic MITRE lookup with intelligent fallback
+            mitre_map = CONFIG.get('mitre', {})
+            if etype in mitre_map:
+                a['mitre'] = mitre_map[etype]
+            elif 'login' in etype or 'auth' in etype or 'password' in etype:
+                a['mitre'] = {'id': 'T1110', 'name': 'Brute Force', 'tactic': 'Credential Access'}
+            elif 'scan' in etype or 'probe' in etype:
+                a['mitre'] = {'id': 'T1046', 'name': 'Network Service Scan', 'tactic': 'Discovery'}
+            elif 'sql' in etype or 'inject' in etype or 'web' in etype:
+                a['mitre'] = {'id': 'T1190', 'name': 'Exploit Public App', 'tactic': 'Initial Access'}
+            elif 'flood' in etype or 'dos' in etype or 'memory' in etype or 'kernel' in etype:
+                a['mitre'] = {'id': 'T1499', 'name': 'Endpoint DoS', 'tactic': 'Impact'}
+            elif 'root' in etype or 'sudo' in etype or 'priv' in etype:
+                a['mitre'] = {'id': 'T1548', 'name': 'Abuse Elevation Control', 'tactic': 'Privilege Escalation'}
+            else:
+                a['mitre'] = {'id': 'T0000', 'name': etype.replace('_',' ').title(), 'tactic': 'Unknown'}
+            a['threat_category'] = CONFIG.get('threat_intelligence', {}).get(etype, 'Unknown')
+
         return jsonify({
             'alerts':  alerts,
             'total':   len(alerts),
@@ -599,6 +784,21 @@ def get_log_alerts():
 
 @app.route('/api/logs/scan', methods=['POST'])
 def trigger_log_scan():
+    """
+    Trigger manual log scan
+    ---
+    tags: [Logs]
+    responses:
+      200:
+        description: Scan complete — returns count of threats found
+        schema:
+          properties:
+            status:  {type: string, example: complete}
+            total:   {type: integer}
+            high:    {type: integer}
+            medium:  {type: integer}
+            message: {type: string}
+    """
     """Trigger a log scan synchronously and return results immediately"""
     try:
         import sys
@@ -671,6 +871,28 @@ def get_sqli_alerts():
 
 @app.route('/api/network/alerts', methods=['GET'])
 def get_network_alerts():
+    """
+    Get network monitoring alerts
+    ---
+    tags: [Network]
+    responses:
+      200:
+        description: Alerts captured by Scapy packet sniffer
+        schema:
+          properties:
+            total:       {type: integer}
+            high:        {type: integer}
+            unique_ips:  {type: integer}
+            attack_types: {type: object}
+            alerts:
+              type: array
+              items:
+                properties:
+                  src_ip:      {type: string}
+                  dst_ip:      {type: string}
+                  attack_type: {type: string, enum: [PORT_SCAN, ICMP_FLOOD, UDP_FLOOD, SYN_FLOOD]}
+                  severity:    {type: integer}
+    """
     """Get real-time network monitoring alerts"""
     try:
         path = os.path.join(BASE_DIR, 'results/network_alerts.json')
