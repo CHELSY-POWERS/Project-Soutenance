@@ -51,5 +51,6 @@ export default function useSocket({ onLogAlert, onNetworkAlert, onSystemStatus }
     return () => { socketRef.current?.disconnect(); };
   }, [connect]);
 
-  return { connected, lastAlertTime, alertCount, socket: socketRef.current };
+  const resetAlertCount = () => setAlertCount(0);
+  return { connected, lastAlertTime, alertCount, resetAlertCount, socket: socketRef.current };
 }

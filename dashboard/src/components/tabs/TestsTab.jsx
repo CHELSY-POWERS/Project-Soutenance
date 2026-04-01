@@ -9,7 +9,7 @@ const ATTACKS = [
   { id: 'ping_flood', label: 'Ping Flood',      icon: '🌊', desc: 'Sends 25 rapid ICMP packets to trigger ICMP flood detection on the network monitor',                       color: C.accent },
 ];
 
-export default function TestsTab({ onAttackComplete }) {
+export default function TestsTab({ onAttackComplete, onClearComplete }) {
   const [running,        setRunning]        = useState(null);
   const [results,        setResults]        = useState([]);
   const [monitorRunning, setMonitorRunning] = useState(false);
@@ -83,7 +83,13 @@ export default function TestsTab({ onAttackComplete }) {
     setClearing(true);
     try {
       const result = await testApi.clearAlerts();
-      addLog(result.success ? '🗑️ All network alerts cleared — ready for fresh demo!' : `❌ ${result.error}`, result.success ? 'success' : 'error');
+      if (result.success) {
+        addLog('🗑️ Log + Network alerts cleared — ready for fresh demo!', 'success');
+        addLog('ℹ️ SQLi count reflects real Apache log history — cannot be cleared', 'info');
+        onClearComplete?.();
+      } else {
+        addLog(`❌ ${result.error}`, 'error');
+      }
       onAttackComplete?.();
     } catch (e) {
       addLog(`❌ Error: ${e.message}`, 'error');

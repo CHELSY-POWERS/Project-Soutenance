@@ -6,10 +6,14 @@ export default function NetworkTab({ networkAlerts }) {
 
   // Fetch the dynamic command from backend (uses server's actual paths)
   useEffect(() => {
-    fetch('http://localhost:5000/api/test/monitor-command')
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/test/monitor-command`)
       .then(r => r.json())
-      .then(d => setMonitorCmd(d.command))
-      .catch(() => setMonitorCmd('sudo python backend/log_analysis/network_monitor.py --interface <your-interface>'));
+      .then(d => {
+        // Show short version: sudo python .../network_monitor.py --interface wlp4s0
+        const short = `cd ~/ai-ids-project && source venv/bin/activate && sudo venv/bin/python backend/log_analysis/network_monitor.py --interface ${d.interface}`;
+        setMonitorCmd(short);
+      })
+      .catch(() => setMonitorCmd('cd ~/ai-ids-project/backend && sudo ../venv/bin/python log_analysis/network_monitor.py --interface wlp4s0'));
   }, []);
 
   const totalAlerts = networkAlerts?.total ?? 0;

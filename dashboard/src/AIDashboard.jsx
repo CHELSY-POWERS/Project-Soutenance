@@ -28,7 +28,17 @@ export default function AIDashboard() {
     if (bulk) {
       loadData();
     } else if (alert) {
-      setLogAlerts(prev => [alert, ...prev].slice(0, 200));
+      setLogAlerts(prev => {
+        if (!prev) return prev;
+        const newAlerts = [alert, ...(prev.alerts || [])].slice(0, 200);
+        return {
+          ...prev,
+          alerts: newAlerts,
+          total: newAlerts.length,
+          high:   newAlerts.filter(a => a.threat_level === 'HIGH').length,
+          medium: newAlerts.filter(a => a.threat_level === 'MEDIUM').length,
+        };
+      });
     }
   }, []);
 
@@ -42,7 +52,7 @@ export default function AIDashboard() {
     }
   }, []);
 
-  const { connected, lastAlertTime, alertCount } = useSocket({
+  const { connected, lastAlertTime, alertCount, resetAlertCount } = useSocket({
     onLogAlert:     handleLiveLogAlert,
     onNetworkAlert: handleLiveNetworkAlert,
   });
@@ -56,7 +66,7 @@ export default function AIDashboard() {
     const interval = setInterval(async () => {
       try {
         const logData = await api.getLogAlerts();
-        setLogAlerts(logData.alerts || []);
+        setLogAlerts(logData);  // store full object
       } catch(e) {}
     }, 5000);
     return () => clearInterval(interval);
@@ -188,7 +198,7 @@ export default function AIDashboard() {
         {activeTab === "metrics"  && <MetricsTab   summary={summary} />}
         {activeTab === "logs"     && <LogsTab       logAlerts={logAlerts} sqliAlerts={sqliAlerts} scanning={scanning} onScan={handleLogScan} />}
         {activeTab === "network"  && <NetworkTab  networkAlerts={networkAlerts} />}
-        {activeTab === "tests"    && <TestsTab    onAttackComplete={loadData} />}
+        {activeTab === "tests"    && <TestsTab    onAttackComplete={loadData} onClearComplete={() => { loadData(); resetAlertCount(); }} />}
       </main>
 
       <style>{`
