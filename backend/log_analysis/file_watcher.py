@@ -3,6 +3,8 @@ Real-Time File Watcher — Iteration 3
 Watches log files every 0.5s and emits WebSocket alerts instantly.
 """
 import os, sys, json, time, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from database import save_log_alert
 from datetime import datetime
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -159,11 +161,13 @@ class LogFileWatcher:
                             if sqli:
                                 print(f"[WATCHER] LIVE SQLi detected!")
                                 self._save_alert(sqli)
+                                save_log_alert(sqli)
                                 self._emit('new_live_alert', {'type': 'sqli', 'alert': sqli, 'message': 'SQL Injection detected!'})
                         alert = self._analyse_line(line, source)
                         if alert:
                             print(f"[WATCHER] LIVE threat: {alert['event_type']} — {alert['threat_level']}")
                             self._save_alert(alert)
+                            save_log_alert(alert)
                             self._emit('new_live_alert', {'type': 'log', 'alert': alert, 'message': f"New {alert['threat_level']} threat in {source}"})
             except Exception as e:
                 print(f"[WATCHER] Loop error: {e}")

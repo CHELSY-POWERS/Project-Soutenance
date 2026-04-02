@@ -21,6 +21,8 @@ import numpy as np
 import json
 import os
 
+from database import init_db, save_log_alert, save_network_alert, get_log_alerts as db_get_log_alerts, get_network_alerts as db_get_network_alerts, clear_alerts as db_clear_alerts, get_stats
+
 # Load central config
 with open(os.path.join(os.path.dirname(__file__), 'config.json')) as _f:
     CONFIG = json.load(_f)
@@ -687,6 +689,23 @@ def emit_system_status():
     except Exception as e:
         print(f"[WS] Status emit error: {e}")
 
+
+@app.route('/api/database/stats', methods=['GET'])
+def database_stats():
+    """
+    Get database statistics
+    ---
+    tags: [Dashboard]
+    responses:
+      200:
+        description: Real-time database statistics
+    """
+    try:
+        stats = get_stats()
+        return jsonify({**stats, 'status': 'connected', 'db': 'SQLite'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({
@@ -820,6 +839,10 @@ def trigger_log_scan():
             'alerts': alerts[:10],  # Send first 10 for instant display
         })
 
+        # Save alerts to database
+        for alert in alerts:
+            save_log_alert(alert)
+
         # Push to all WebSocket clients instantly
         socketio.emit('new_log_alerts', {
             'total':   len(alerts),
@@ -938,6 +961,9 @@ if __name__ == '__main__':
     print("[INFO] React frontend should connect to this address")
     print("\n" + "="*60 + "\n")
     
+    # Initialize database
+    init_db()
+
     # Start real-time file watcher
     try:
         from log_analysis.file_watcher import LogFileWatcher
