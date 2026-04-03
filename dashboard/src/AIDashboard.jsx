@@ -22,6 +22,7 @@ export default function AIDashboard() {
   const [filter,        setFilter]        = useState("all");
   const [loading,       setLoading]       = useState(true);
   const [scanning,      setScanning]      = useState(false);
+  const [dbStats,       setDbStats]       = useState(null);
 
   // WebSocket callbacks
   const handleLiveLogAlert = useCallback((alert, bulk) => {
@@ -88,18 +89,20 @@ export default function AIDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const [summaryData, statsData, logData, sqliData, networkData] = await Promise.all([
+      const [summaryData, statsData, logData, sqliData, networkData, dbData] = await Promise.all([
         api.getDashboardSummary(),
         api.getStatistics().catch(() => null),
         api.getLogAlerts().catch(() => null),
         api.getSQLiAlerts().catch(() => null),
         api.getNetworkAlerts().catch(() => null),
+        fetch('http://localhost:5000/api/database/stats').then(r=>r.json()).catch(()=>null),
       ]);
       setSummary(summaryData);
       setStatistics(statsData);
       setLogAlerts(logData);
       setSQLiAlerts(sqliData);
       setNetworkAlerts(networkData);
+      if (dbData) setDbStats(dbData);
       setLoading(false);
     } catch (err) {
       setError('Cannot connect to backend. Make sure Flask is running on http://localhost:5000');

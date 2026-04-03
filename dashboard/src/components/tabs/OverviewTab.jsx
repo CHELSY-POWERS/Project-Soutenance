@@ -1,7 +1,7 @@
 import { C, KPI } from "../UI";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 
-export default function OverviewTab({ summary, statistics }) {
+export default function OverviewTab({ summary, statistics, dbStats }) {
   const { detection, performance } = summary;
 
   const barData = [
@@ -70,6 +70,26 @@ export default function OverviewTab({ summary, statistics }) {
           <p style={{ margin: "0 0 8px", color: C.muted, fontSize: 12, letterSpacing: 1, textTransform: "uppercase" }}>False Positive Rate</p>
           <p style={{ margin: "0 0 4px", color: C.red, fontSize: 36, fontWeight: 800 }}>{performance.false_positive_rate}%</p>
           <p style={{ margin: 0, color: C.muted, fontSize: 12 }}>Normal traffic incorrectly flagged</p>
+        </div>
+      </div>
+      {/* Database Status */}
+      <div style={{ marginTop: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24 }}>
+        <p style={{ margin: "0 0 16px", color: C.text, fontSize: 13, letterSpacing: 1, textTransform: "uppercase" }}>
+          🗄️ Database Status
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+          {[
+            { label: "Storage",         value: dbStats?.db ?? "SQLite",              color: C.accent },
+            { label: "Status",          value: dbStats?.status ?? "—",               color: dbStats?.status === "connected" ? C.green : C.red },
+            { label: "Log Alerts",      value: dbStats?.total_log_alerts ?? 0,        color: C.yellow },
+            { label: "High Severity",   value: dbStats?.high_log_alerts ?? 0,         color: C.red },
+            { label: "Unique IPs",      value: dbStats?.unique_ips ?? 0,              color: C.purple },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ textAlign: "center", padding: 16, background: C.bg, borderRadius: 8, border: `1px solid ${C.border}` }}>
+              <p style={{ margin: "0 0 6px", color, fontSize: 22, fontWeight: 800, fontFamily: "monospace" }}>{value}</p>
+              <p style={{ margin: 0, color: C.muted, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </>

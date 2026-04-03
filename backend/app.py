@@ -751,15 +751,16 @@ def get_log_alerts():
     """
     """Get real-time log analysis alerts"""
     try:
-        alerts_path = os.path.join(BASE_DIR, 'results/log_alerts.json')
-        if not os.path.exists(alerts_path):
-            return jsonify({
-                'alerts': [],
-                'total': 0,
-                'message': 'No log scan run yet'
-            }), 200
-        with open(alerts_path, 'r') as f:
-            alerts = json.load(f)
+        # Read from SQLite database (primary source)
+        alerts = db_get_log_alerts(limit=200)
+
+        # Fallback to JSON if database is empty
+        if not alerts:
+            alerts_path = os.path.join(BASE_DIR, 'results/log_alerts.json')
+            if os.path.exists(alerts_path):
+                with open(alerts_path, 'r') as f:
+                    alerts = json.load(f)
+
         high   = sum(1 for a in alerts if a.get('threat_level') == 'HIGH')
         medium = sum(1 for a in alerts if a.get('threat_level') == 'MEDIUM')
         # Enrich with MITRE ATT&CK + risk score
